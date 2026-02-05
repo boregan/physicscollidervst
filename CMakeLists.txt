@@ -7,8 +7,8 @@ add_subdirectory(JUCE)
 
 # Create the plugin
 juce_add_plugin(TheCollider
-    PRODUCT_NAME "The Collider"
-    COMPANY_NAME "Physics Synthesizers"
+    PRODUCT_NAME "TheCollider"
+    COMPANY_NAME "PhysicsSynthesizers"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -20,6 +20,7 @@ juce_add_plugin(TheCollider
     FORMATS VST3 AU Standalone
     VST3_CATEGORIES "Synth"
     AU_MAIN_TYPE "kAudioUnitType_MusicDevice"
+    BUNDLE_ID "com.PhysicsSynthesizers.TheCollider"
 )
 
 # Add source files

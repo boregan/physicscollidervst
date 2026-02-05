@@ -349,7 +349,7 @@ juce::AudioProcessorEditor* TheColliderAudioProcessor::createEditor()
 
 void TheColliderAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = apvts.copyValueTreeToXml(true);
+    auto state = apvts.state.createXml();
     copyXmlToBinary(*state, destData);
 }
 
@@ -357,7 +357,7 @@ void TheColliderAudioProcessor::setStateInformation(const void* data, int sizeIn
 {
     auto xmlState = getXmlFromBinary(data, sizeInBytes);
     if (xmlState != nullptr)
-        apvts.replaceValueTreeFromXml(*xmlState);
+        apvts.state = juce::ValueTree::fromXml(*xmlState);
 }
 
 int TheColliderAudioProcessor::allocateVoice()
