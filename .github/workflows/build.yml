@@ -1,0 +1,99 @@
+name: Build The Collider Plugin
+
+on:
+  push:
+    branches: [ "claude/collider-synth-plugin-kTeW9" ]
+  pull_request:
+    branches: [ "claude/collider-synth-plugin-kTeW9" ]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Clone JUCE
+      run: git clone --depth 1 https://github.com/juce-framework/JUCE.git JUCE
+
+    - name: Create build directory
+      run: mkdir build
+
+    - name: Configure CMake
+      working-directory: ./build
+      run: cmake .. -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      working-directory: ./build
+      run: cmake --build . --config Release --parallel 4
+
+    - name: Package VST3
+      run: |
+        mkdir -p release-artifacts
+        cp -r build/TheCollider_artefacts/Release/VST3/TheCollider.vst3 release-artifacts/ || true
+        cp -r build/TheCollider_artefacts/Release/AU/TheCollider.component release-artifacts/ || true
+        ls -la release-artifacts/
+
+    - name: Upload macOS artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: TheCollider-macOS
+        path: release-artifacts/*
+        retention-days: 30
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Clone JUCE
+      run: git clone --depth 1 https://github.com/juce-framework/JUCE.git JUCE
+
+    - name: Create build directory
+      run: mkdir build
+
+    - name: Configure CMake
+      working-directory: ./build
+      run: cmake .. -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      working-directory: ./build
+      run: cmake --build . --config Release --parallel 4
+
+    - name: Package VST3
+      run: |
+        mkdir release-artifacts
+        robocopy build\TheCollider_artefacts\Release\VST3 release-artifacts TheCollider.vst3 /S || exit /b 0
+        dir release-artifacts
+      shell: cmd
+
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: TheCollider-Windows
+        path: release-artifacts/*
+        retention-days: 30
+
+  create-release:
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/heads/claude/')
+    steps:
+    - uses: actions/download-artifact@v3
+
+    - name: List artifacts
+      run: |
+        ls -la
+        find . -name "*.vst3" -o -name "*.component" 2>/dev/null | head -20
+
+    - name: Create GitHub Release
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: "*/**/*.vst3,*/**/*.component"
+        tag: "latest-build"
+        allowUpdates: true
+        replacesArtifacts: true
+        body: "Automated build of The Collider physics synthesizer"
