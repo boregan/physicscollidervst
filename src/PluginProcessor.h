@@ -6,6 +6,7 @@
 #include "Voice.h"
 
 class SpectralSmearer;
+class SpatialEngine;
 
 class TheColliderAudioProcessor : public juce::AudioProcessor,
                                    public juce::AudioProcessorValueTreeState::Listener
@@ -55,6 +56,7 @@ private:
     // Voice management
     std::array<std::unique_ptr<Voice>, VOICE_COUNT> voices;
     std::unique_ptr<SpectralSmearer> spectralSmearer;
+    std::unique_ptr<SpatialEngine> spatialEngine;
 
     double sampleRate = 44100.0;
     int nextVoiceIndex = 0;

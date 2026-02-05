@@ -31,6 +31,7 @@ target_sources(TheCollider PRIVATE
     src/dsp/FMImpulse.cpp
     src/dsp/CollisionDetector.cpp
     src/dsp/SpectralSmearer.cpp
+    src/dsp/SpatialEngine.cpp
 )
 
 # Link JUCE

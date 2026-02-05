@@ -4,6 +4,7 @@
 #include "dsp/FMImpulse.h"
 #include "dsp/CollisionDetector.h"
 #include "dsp/SpectralSmearer.h"
+#include "dsp/SpatialEngine.h"
 
 namespace Param {
     // Particle Parameters
@@ -209,6 +210,9 @@ void TheColliderAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
     // Initialize shared systems
     spectralSmearer = std::make_unique<SpectralSmearer>();
     spectralSmearer->prepare(sampleRate, samplesPerBlock);
+
+    spatialEngine = std::make_unique<SpatialEngine>();
+    spatialEngine->prepare(sampleRate);
 }
 
 void TheColliderAudioProcessor::releaseResources()
@@ -289,8 +293,13 @@ void TheColliderAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     auto* right = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : nullptr;
     int numSamples = buffer.getNumSamples();
 
+    float stereoWidth = apvts.getRawParameterValue(Param::StereoWidth)->load();
+    float space = apvts.getRawParameterValue(Param::Space)->load();
+
     for (int n = 0; n < numSamples; ++n) {
         float mixedOutput = 0.0f;
+        float voicePositionSum = 0.0f;
+        int activeVoices = 0;
 
         // Process all active voices
         for (int v = 0; v < VOICE_COUNT; ++v) {
@@ -300,6 +309,11 @@ void TheColliderAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
                                                      fmDepth, fmRatio, zapSpeed, zapDrop,
                                                      wallMaterials);
                 mixedOutput += voiceOut;
+
+                // Get particle position for spatial panning
+                const Particle& p = voices[v]->getParticle();
+                voicePositionSum += p.x;
+                activeVoices++;
             }
         }
 
@@ -318,9 +332,13 @@ void TheColliderAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         // Process through spectral smearer (adds metallic/sci-fi character)
         float finalOutput = spectralSmearer->process(volumedOutput);
 
-        left[n] = finalOutput;
+        // Apply spatial panning based on average particle position
+        float particleX = activeVoices > 0 ? voicePositionSum / (float)activeVoices : 0.0f;
+        StereoSample stereoOut = spatialEngine->process(finalOutput, particleX, space, stereoWidth);
+
+        left[n] = stereoOut.left;
         if (right != nullptr)
-            right[n] = finalOutput;
+            right[n] = stereoOut.right;
     }
 }
 
