@@ -2,111 +2,207 @@
 #include "ParticleVisualizer.h"
 #include "PresetManager.h"
 
+// ============================================================================
+// ParameterSection Implementation
+// ============================================================================
+
+ParameterSection::ParameterSection(const juce::String& title, int paramCount)
+    : sectionTitle(title)
+{
+    for (int i = 0; i < paramCount; ++i) {
+        sliders.push_back(AnimatedSlider());
+        addAndMakeVisible(sliders.back());
+    }
+}
+
+void ParameterSection::paint(juce::Graphics& g)
+{
+    auto bounds = getLocalBounds().toFloat();
+
+    // Animated semi-transparent background with border
+    float timeVar = std::sin(juce::Time::getMillisecondCounterHiRes() * 0.001f) * 0.5f + 0.5f;
+    float bgAlpha = 0.15f + 0.05f * timeVar;
+    float borderAlpha = 0.4f + 0.2f * timeVar;
+
+    // Background panel
+    g.setColour(juce::Colour(40, 80, 120).withAlpha(bgAlpha));
+    g.fillRoundedRectangle(bounds.reduced(2), 8.0f);
+
+    // Border glow
+    juce::ColourGradient borderGrad(juce::Colour(100, 180, 255).withAlpha(borderAlpha),
+                                     bounds.getX(), bounds.getY(),
+                                     juce::Colour(100, 180, 255).withAlpha(borderAlpha * 0.2f),
+                                     bounds.getX(), bounds.getY() + 5, false);
+    g.setGradientFill(borderGrad);
+    g.drawRoundedRectangle(bounds.reduced(2), 8.0f, 1.5f);
+
+    // Title
+    g.setColour(juce::Colour(150, 220, 255).withAlpha(0.8f));
+    g.setFont(juce::Font(12.0f, juce::Font::bold));
+    g.drawText(sectionTitle, bounds.removeFromTop(20).reduced(5), juce::Justification::centred);
+}
+
+void ParameterSection::resized()
+{
+    auto bounds = getLocalBounds().reduced(5);
+    bounds.removeFromTop(20);  // Leave space for title
+
+    int sliderSize = 50;
+    int spacing = 8;
+    int perRow = 3;
+
+    for (size_t i = 0; i < sliders.size(); ++i) {
+        int row = i / perRow;
+        int col = i % perRow;
+
+        int x = col * (sliderSize + spacing);
+        int y = row * (sliderSize + spacing) + 5;
+
+        sliders[i].setBounds(x, y, sliderSize, sliderSize);
+    }
+}
+
+// ============================================================================
+// TheColliderAudioProcessorEditor Implementation
+// ============================================================================
+
 TheColliderAudioProcessorEditor::TheColliderAudioProcessorEditor(TheColliderAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
-    setSize(1200, 700);
-    setLookAndFeel(&getLookAndFeel());
+    setSize(1600, 900);
+    setFramesPerSecond(60);
+    startTimer(16);  // ~60fps
 
-    // Create visualizer
+    // Create visualizer (background)
     visualizer = std::make_unique<ParticleVisualizer>();
     addAndMakeVisible(*visualizer);
+
+    // Create control sections
+    physicsSection = std::make_unique<ParameterSection>("PHYSICS", 2);
+    resonatorSection = std::make_unique<ParameterSection>("RESONATOR", 3);
+    fmSection = std::make_unique<ParameterSection>("FM IMPULSE", 2);
+    spectralSection = std::make_unique<ParameterSection>("SPECTRAL", 3);
+    outputSection = std::make_unique<ParameterSection>("OUTPUT", 2);
+
+    addAndMakeVisible(*physicsSection);
+    addAndMakeVisible(*resonatorSection);
+    addAndMakeVisible(*fmSection);
+    addAndMakeVisible(*spectralSection);
+    addAndMakeVisible(*outputSection);
+
+    // Setup all sliders with parameter attachments
+    auto& physics = physicsSection->getSliders();
+    setupAnimatedSlider(physics[0], "gravityX");
+    setupAnimatedSlider(physics[1], "gravityY");
+
+    auto& resonator = resonatorSection->getSliders();
+    setupAnimatedSlider(resonator[0], "material");
+    setupAnimatedSlider(resonator[1], "damping");
+    setupAnimatedSlider(resonator[2], "brightness");
+
+    auto& fm = fmSection->getSliders();
+    setupAnimatedSlider(fm[0], "fmDepth");
+    setupAnimatedSlider(fm[1], "fmRatio");
+
+    auto& spectral = spectralSection->getSliders();
+    setupAnimatedSlider(spectral[0], "atmosphere");
+    setupAnimatedSlider(spectral[1], "entropy");
+    setupAnimatedSlider(spectral[2], "fdnMix");
+
+    auto& output = outputSection->getSliders();
+    setupAnimatedSlider(output[0], "masterVolume");
+    setupAnimatedSlider(output[1], "stereoWidth");
 
     // Preset selector
     presetCombo.addItemList(juce::StringArray("Default", "Laser Blip", "Bouncing Ball", "Iron Rain",
                                              "Gravity Well", "Droid Malfunction", "Crystal Cave",
                                              "Hull Breach", "Geiger Counter", "Subspace Ping", "Quantum Flux"), 1);
     presetCombo.setSelectedItemIndex(0);
+    presetCombo.setColour(juce::ComboBox::backgroundColourId, juce::Colour(30, 50, 80));
+    presetCombo.setColour(juce::ComboBox::textColourId, juce::Colour(150, 220, 255));
+    presetCombo.setColour(juce::ComboBox::outlineColourId, juce::Colour(100, 150, 200));
     addAndMakeVisible(presetCombo);
 
-    // Setup sliders - organized by section
-    auto setupSlider = [this, &p](juce::Slider& slider, const juce::String& paramID) {
-        slider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 18);
-        addAndMakeVisible(slider);
-        auto* param = p.getAPVTS().getParameter(paramID);
-        if (param != nullptr) {
-            attachments.push_back(std::make_unique<juce::SliderParameterAttachment>(*param, slider));
+    presetCombo.onChange = [this]() {
+        int presetIndex = presetCombo.getSelectedItemIndex();
+        if (presetIndex > 0) {
+            PresetManager::loadPreset(processorRef, presetIndex - 1);
         }
     };
-
-    setupSlider(gravityXSlider, "gravityX");
-    setupSlider(gravityYSlider, "gravityY");
-    setupSlider(massSlider, "mass");
-    setupSlider(elasticitySlider, "elasticity");
-    setupSlider(materialSlider, "material");
-    setupSlider(dampingSlider, "damping");
-    setupSlider(brightnessSlider, "brightness");
-    setupSlider(fmDepthSlider, "fmDepth");
-    setupSlider(fmRatioSlider, "fmRatio");
-    setupSlider(entropySlider, "entropy");
-    setupSlider(atmosphereSlider, "atmosphere");
-    setupSlider(masterVolumeSlider, "masterVolume");
-    setupSlider(stereoWidthSlider, "stereoWidth");
-    setupSlider(fdnMixSlider, "fdnMix");
 }
 
 TheColliderAudioProcessorEditor::~TheColliderAudioProcessorEditor()
 {
+    stopTimer();
+}
+
+void TheColliderAudioProcessorEditor::setupAnimatedSlider(AnimatedSlider& slider, const juce::String& paramID)
+{
+    slider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
+    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 18);
+
+    auto* param = processorRef.getAPVTS().getParameter(paramID);
+    if (param != nullptr) {
+        attachments.push_back(std::make_unique<juce::SliderParameterAttachment>(*param, slider));
+    }
+
+    slider.addListener(this);
 }
 
 void TheColliderAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour::fromRGB(20, 20, 25));
-
-    g.setColour(juce::Colours::white);
-    g.setFont(20.0f);
-    g.drawText("THE COLLIDER - Physics Particle Synthesizer", 10, 10, 400, 25, juce::Justification::left);
-
-    // Section headers
-    g.setFont(11.0f);
-    g.setColour(juce::Colour::fromRGB(150, 150, 180));
-
-    int yOffset = 280;
-    g.drawText("PHYSICS", 15, yOffset, 80, 18, juce::Justification::left);
-    g.drawText("RESONATOR", 130, yOffset, 80, 18, juce::Justification::left);
-    g.drawText("FM IMPULSE", 250, yOffset, 100, 18, juce::Justification::left);
-    g.drawText("SPECTRAL", 380, yOffset, 80, 18, juce::Justification::left);
-    g.drawText("OUTPUT", 510, yOffset, 80, 18, juce::Justification::left);
+    // Background is drawn by visualizer, nothing needed here
 }
 
 void TheColliderAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
 
-    // Visualizer takes top 270 pixels
-    visualizer->setBounds(10, 45, bounds.getWidth() - 20, 225);
+    // Visualizer fills entire background
+    visualizer->setBounds(bounds);
 
-    // Preset selector
-    presetCombo.setBounds(10, 280, 180, 25);
+    // Control sections overlay
+    int sectionWidth = 150;
+    int sectionHeight = 200;
+    int padding = 15;
+    int topMargin = 50;
 
-    // Sliders organized in 5 columns x 2-3 rows
-    int col0 = 15, col1 = 130, col2 = 250, col3 = 380, col4 = 510;
-    int sliderWidth = 50, sliderHeight = 60;
-    int rowHeight = sliderHeight + 15;
+    int x = padding;
+    int y = topMargin;
 
-    // Row 1 (y = 315)
-    gravityXSlider.setBounds(col0, 315, sliderWidth, sliderHeight);
-    materialSlider.setBounds(col1, 315, sliderWidth, sliderHeight);
-    fmDepthSlider.setBounds(col2, 315, sliderWidth, sliderHeight);
-    atmosphereSlider.setBounds(col3, 315, sliderWidth, sliderHeight);
-    masterVolumeSlider.setBounds(col4, 315, sliderWidth, sliderHeight);
+    physicsSection->setBounds(x, y, sectionWidth, sectionHeight);
+    x += sectionWidth + padding;
 
-    // Row 2 (y = 315 + rowHeight)
-    gravityYSlider.setBounds(col0, 315 + rowHeight, sliderWidth, sliderHeight);
-    dampingSlider.setBounds(col1, 315 + rowHeight, sliderWidth, sliderHeight);
-    fmRatioSlider.setBounds(col2, 315 + rowHeight, sliderWidth, sliderHeight);
-    entropySlider.setBounds(col3, 315 + rowHeight, sliderWidth, sliderHeight);
-    stereoWidthSlider.setBounds(col4, 315 + rowHeight, sliderWidth, sliderHeight);
+    resonatorSection->setBounds(x, y, sectionWidth, sectionHeight);
+    x += sectionWidth + padding;
 
-    // Row 3 (y = 315 + 2*rowHeight)
-    massSlider.setBounds(col0, 315 + 2 * rowHeight, sliderWidth, sliderHeight);
-    brightnessSlider.setBounds(col1, 315 + 2 * rowHeight, sliderWidth, sliderHeight);
-    elasticitySlider.setBounds(col2, 315 + 2 * rowHeight, sliderWidth, sliderHeight);
-    fdnMixSlider.setBounds(col3, 315 + 2 * rowHeight, sliderWidth, sliderHeight);
+    fmSection->setBounds(x, y, sectionWidth, sectionHeight);
+    x += sectionWidth + padding;
+
+    spectralSection->setBounds(x, y, sectionWidth, sectionHeight);
+    x += sectionWidth + padding;
+
+    outputSection->setBounds(x, y, sectionWidth, sectionHeight);
+
+    // Preset selector (top left corner)
+    presetCombo.setBounds(padding, padding, 180, 28);
+}
+
+void TheColliderAudioProcessorEditor::timerCallback()
+{
+    // Smooth animation state updates
+    hoverAmountGlobal *= 0.95f;
+    visualizer->repaint();
 }
 
 void TheColliderAudioProcessorEditor::sliderValueChanged(juce::Slider* slider)
 {
-    // Slider value changes are handled by SliderParameterAttachment
+    // Trigger visual feedback
+    hoverAmountGlobal = 1.0f;
+}
+
+void TheColliderAudioProcessorEditor::mouseMove(const juce::MouseEvent& event)
+{
+    lastMousePos = event.getPosition();
+    hoverAmountGlobal = juce::jmin(1.0f, hoverAmountGlobal + 0.1f);
 }
