@@ -244,12 +244,14 @@ void TheColliderAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         if (msg.isNoteOn()) {
             int voiceIdx = allocateVoice();
             float velocity = msg.getVelocity() / 127.0f;
-            voices[voiceIdx]->noteOn(msg.getNoteNumber(), velocity,
+            int launchMode = (int)*apvts.getRawParameterValue(Param::LaunchMode);
+            int burstCount = (int)*apvts.getRawParameterValue(Param::BurstCount);
+            float streamRate = apvts.getRawParameterValue(Param::StreamRate)->load();
+            voices[voiceIdx]->noteOn(msg.getNoteNumber(), velocity, launchMode, burstCount, streamRate,
                                      apvts.getRawParameterValue(Param::Mass)->load(),
                                      apvts.getRawParameterValue(Param::Elasticity)->load(),
                                      apvts.getRawParameterValue(Param::Lifetime)->load(),
-                                     apvts.getRawParameterValue(Param::Charge)->load(),
-                                     0.0f);
+                                     apvts.getRawParameterValue(Param::Charge)->load());
         } else if (msg.isNoteOff()) {
             // Find and release the voice (optional - let it decay naturally)
         }
