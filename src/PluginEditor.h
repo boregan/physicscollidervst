@@ -3,6 +3,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
 
+class ParticleVisualizer;
+
 class TheColliderAudioProcessorEditor : public juce::AudioProcessorEditor,
                                         public juce::Slider::Listener
 {
@@ -18,14 +20,30 @@ public:
 private:
     TheColliderAudioProcessor& processorRef;
 
-    // Test sliders for Phase 1
-    juce::Slider massSlider;
-    juce::Slider elasticitySlider;
-    juce::Slider gravityYSlider;
+    // Visualizer
+    std::unique_ptr<ParticleVisualizer> visualizer;
 
-    std::unique_ptr<juce::SliderParameterAttachment> massAttachment;
-    std::unique_ptr<juce::SliderParameterAttachment> elasticityAttachment;
-    std::unique_ptr<juce::SliderParameterAttachment> gravityYAttachment;
+    // Preset selector
+    juce::ComboBox presetCombo;
+
+    // Physics sliders
+    juce::Slider gravityXSlider, gravityYSlider;
+    juce::Slider massSlider, elasticitySlider;
+
+    // Resonator sliders
+    juce::Slider materialSlider, dampingSlider, brightnessSlider;
+
+    // FM Impulse sliders
+    juce::Slider fmDepthSlider, fmRatioSlider;
+
+    // Spectral/FDN sliders
+    juce::Slider atmosphereSlider, entropySlider, fdnMixSlider;
+
+    // Output sliders
+    juce::Slider masterVolumeSlider, stereoWidthSlider;
+
+    // Parameter attachments
+    std::vector<std::unique_ptr<juce::SliderParameterAttachment>> attachments;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TheColliderAudioProcessorEditor)
 };

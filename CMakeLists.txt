@@ -27,6 +27,8 @@ target_sources(TheCollider PRIVATE
     src/PluginProcessor.cpp
     src/PluginEditor.cpp
     src/Voice.cpp
+    src/PresetManager.cpp
+    src/ParticleVisualizer.cpp
     src/dsp/ResonatorBank.cpp
     src/dsp/FMImpulse.cpp
     src/dsp/CollisionDetector.cpp
