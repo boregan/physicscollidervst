@@ -202,15 +202,11 @@ void TheColliderAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
 
     // Initialize voices
     for (int i = 0; i < VOICE_COUNT; ++i) {
-        resonatorBanks[i] = std::make_unique<ResonatorBank>();
-        resonatorBanks[i]->prepare(sampleRate, samplesPerBlock);
-
-        fmGenerators[i] = std::make_unique<FMImpulseGenerator>();
-        fmGenerators[i]->prepare(sampleRate, samplesPerBlock);
+        voices[i] = std::make_unique<Voice>();
+        voices[i]->prepare(sampleRate, samplesPerBlock);
     }
 
     // Initialize shared systems
-    collisionDetector = std::make_unique<CollisionDetector>();
     spectralSmearer = std::make_unique<SpectralSmearer>();
     spectralSmearer->prepare(sampleRate, samplesPerBlock);
 }
@@ -242,18 +238,74 @@ void TheColliderAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Process MIDI input (will be implemented in Phase 2)
+    // Process MIDI input
     for (auto metadata : midiMessages) {
         auto msg = metadata.getMessage();
         if (msg.isNoteOn()) {
-            // Launch particle - implementation in next phase
+            int voiceIdx = allocateVoice();
+            float velocity = msg.getVelocity() / 127.0f;
+            voices[voiceIdx]->noteOn(msg.getNoteNumber(), velocity,
+                                     apvts.getRawParameterValue(Param::Mass)->load(),
+                                     apvts.getRawParameterValue(Param::Elasticity)->load(),
+                                     apvts.getRawParameterValue(Param::Lifetime)->load(),
+                                     apvts.getRawParameterValue(Param::Charge)->load(),
+                                     0.0f);
         } else if (msg.isNoteOff()) {
-            // Stop particle - implementation in next phase
+            // Find and release the voice (optional - let it decay naturally)
         }
     }
 
-    // For now, output silence
-    buffer.clear();
+    // Get current parameter values
+    float gravityX = apvts.getRawParameterValue(Param::GravityX)->load();
+    float gravityY = apvts.getRawParameterValue(Param::GravityY)->load();
+    float fieldMode = *apvts.getRawParameterValue(Param::FieldMode);
+    float fieldStrength = apvts.getRawParameterValue(Param::FieldStrength)->load();
+    float material = apvts.getRawParameterValue(Param::Material)->load();
+    float position = apvts.getRawParameterValue(Param::Position)->load();
+    float damping = apvts.getRawParameterValue(Param::Damping)->load();
+    float brightness = apvts.getRawParameterValue(Param::Brightness)->load();
+    float fmDepth = apvts.getRawParameterValue(Param::FMDepth)->load();
+    float fmRatio = apvts.getRawParameterValue(Param::FMRatio)->load();
+    float zapSpeed = apvts.getRawParameterValue(Param::ZapSpeed)->load();
+    float zapDrop = apvts.getRawParameterValue(Param::ZapDrop)->load();
+    float masterVolume = apvts.getRawParameterValue(Param::MasterVolume)->load();
+    float resFmMix = apvts.getRawParameterValue(Param::ResFmMix)->load();
+
+    int wallMaterials[4] = {
+        (int)*apvts.getRawParameterValue(Param::WallTop),
+        (int)*apvts.getRawParameterValue(Param::WallBottom),
+        (int)*apvts.getRawParameterValue(Param::WallLeft),
+        (int)*apvts.getRawParameterValue(Param::WallRight)
+    };
+
+    // Process each sample
+    auto* left = buffer.getWritePointer(0);
+    auto* right = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : nullptr;
+    int numSamples = buffer.getNumSamples();
+
+    for (int n = 0; n < numSamples; ++n) {
+        float mixedOutput = 0.0f;
+
+        // Process all active voices
+        for (int v = 0; v < VOICE_COUNT; ++v) {
+            if (voices[v]->isActive()) {
+                float voiceOut = voices[v]->process(gravityX, gravityY, fieldMode, fieldStrength,
+                                                     material, position, damping, brightness,
+                                                     fmDepth, fmRatio, zapSpeed, zapDrop,
+                                                     wallMaterials);
+                mixedOutput += voiceOut;
+            }
+        }
+
+        // Convert master volume from dB to linear
+        float masterGain = std::pow(10.0f, masterVolume / 20.0f);
+
+        // Apply volume and write to output
+        float finalOutput = mixedOutput * masterGain / (float)VOICE_COUNT;
+        left[n] = finalOutput;
+        if (right != nullptr)
+            right[n] = finalOutput;
+    }
 }
 
 juce::AudioProcessorEditor* TheColliderAudioProcessor::createEditor()
@@ -272,6 +324,20 @@ void TheColliderAudioProcessor::setStateInformation(const void* data, int sizeIn
     auto xmlState = getXmlFromBinary(data, sizeInBytes);
     if (xmlState != nullptr)
         apvts.replaceValueTreeFromXml(*xmlState);
+}
+
+int TheColliderAudioProcessor::allocateVoice()
+{
+    // Try to find an inactive voice
+    for (int i = 0; i < VOICE_COUNT; ++i) {
+        if (!voices[i]->isActive())
+            return i;
+    }
+
+    // All voices active - steal the oldest one (round-robin)
+    int voiceIdx = nextVoiceIndex;
+    nextVoiceIndex = (nextVoiceIndex + 1) % VOICE_COUNT;
+    return voiceIdx;
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

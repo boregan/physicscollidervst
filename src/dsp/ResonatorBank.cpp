@@ -73,11 +73,12 @@ float ResonatorBank::process(float input)
     return output / (float)modeCount;
 }
 
-void ResonatorBank::excite(float impactForce, float mat, float pos, float damp, int count)
+void ResonatorBank::excite(float impactForce, float mat, float pos, float damp, int count, float fundamentalFreq)
 {
     material = mat;
     position = pos;
     damping = damp;
+    fundamentalFrequency = fundamentalFreq;
     setModeCount(count);
     updateModeFrequencies();
     updateModeGains();
@@ -113,6 +114,12 @@ void ResonatorBank::setDamping(float damp)
     damping = juce::jlimit(0.0f, 1.0f, damp);
 }
 
+void ResonatorBank::setFundamental(float freq)
+{
+    fundamentalFrequency = juce::jlimit(20.0f, 4000.0f, freq);
+    updateModeFrequencies();
+}
+
 void ResonatorBank::updateModeFrequencies()
 {
     for (int i = 0; i < modeCount; ++i)
@@ -127,9 +134,6 @@ void ResonatorBank::updateModeGains()
 
 float ResonatorBank::getModeFrequency(int modeIndex)
 {
-    // Fundamental frequency (would be set from MIDI note - hardcoded to A4 for now)
-    float fundamental = 440.0f;
-
     // Interpolate between harmonic and inharmonic based on material parameter
     // Material 0.0 = harmonic series (1:2:3:4...)
     // Material 1.0 = randomized/inharmonic
@@ -152,7 +156,7 @@ float ResonatorBank::getModeFrequency(int modeIndex)
         ratio = (1.0f + modeIndex * 0.5f) * (1.0f + material * 0.7f);
     }
 
-    return juce::jlimit(20.0f, 20000.0f, fundamental * ratio);
+    return juce::jlimit(20.0f, 20000.0f, fundamentalFrequency * ratio);
 }
 
 float ResonatorBank::getModeGain(int modeIndex)

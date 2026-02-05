@@ -3,11 +3,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include <array>
+#include "Voice.h"
 
-class Particle;
-class ResonatorBank;
-class FMImpulseGenerator;
-class CollisionDetector;
 class SpectralSmearer;
 
 class TheColliderAudioProcessor : public juce::AudioProcessor,
@@ -56,14 +53,14 @@ private:
     static constexpr int VOICE_COUNT = 8;
 
     // Voice management
-    std::array<std::unique_ptr<Particle>, VOICE_COUNT> voices;
-    std::array<std::unique_ptr<ResonatorBank>, VOICE_COUNT> resonatorBanks;
-    std::array<std::unique_ptr<FMImpulseGenerator>, VOICE_COUNT> fmGenerators;
-    std::unique_ptr<CollisionDetector> collisionDetector;
+    std::array<std::unique_ptr<Voice>, VOICE_COUNT> voices;
     std::unique_ptr<SpectralSmearer> spectralSmearer;
 
     double sampleRate = 44100.0;
     int nextVoiceIndex = 0;
+
+    // Voice allocation helper
+    int allocateVoice();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TheColliderAudioProcessor)
 };

@@ -26,6 +26,7 @@ juce_add_plugin(TheCollider
 target_sources(TheCollider PRIVATE
     src/PluginProcessor.cpp
     src/PluginEditor.cpp
+    src/Voice.cpp
     src/dsp/ResonatorBank.cpp
     src/dsp/FMImpulse.cpp
     src/dsp/CollisionDetector.cpp

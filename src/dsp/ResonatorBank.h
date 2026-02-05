@@ -36,11 +36,12 @@ public:
     void prepare(double sampleRate, int samplesPerBlock);
     float process(float input);
 
-    void excite(float impactForce, float material, float position, float damping, int modeCount);
+    void excite(float impactForce, float material, float position, float damping, int modeCount, float fundamentalFreq = 440.0f);
     void setModeCount(int count);
     void setMaterial(float material);
     void setPosition(float position);
     void setDamping(float damping);
+    void setFundamental(float freq);
 
 private:
     std::array<ResonatorMode, MODE_COUNT> modes;
@@ -49,6 +50,7 @@ private:
     float material = 0.0f;
     float position = 0.5f;
     float damping = 0.3f;
+    float fundamentalFrequency = 440.0f;
 
     void updateModeFrequencies();
     void updateModeGains();
