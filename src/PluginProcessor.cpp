@@ -272,6 +272,10 @@ void TheColliderAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     float zapDrop = apvts.getRawParameterValue(Param::ZapDrop)->load();
     float masterVolume = apvts.getRawParameterValue(Param::MasterVolume)->load();
     float resFmMix = apvts.getRawParameterValue(Param::ResFmMix)->load();
+    float fdnMix = apvts.getRawParameterValue(Param::FDNMix)->load();
+    float atmosphere = apvts.getRawParameterValue(Param::Atmosphere)->load();
+    float entropy = apvts.getRawParameterValue(Param::Entropy)->load();
+    int chaosType = (int)*apvts.getRawParameterValue(Param::ChaosType);
 
     int wallMaterials[4] = {
         (int)*apvts.getRawParameterValue(Param::WallTop),
@@ -302,8 +306,18 @@ void TheColliderAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
         // Convert master volume from dB to linear
         float masterGain = std::pow(10.0f, masterVolume / 20.0f);
 
-        // Apply volume and write to output
-        float finalOutput = mixedOutput * masterGain / (float)VOICE_COUNT;
+        // Apply volume
+        float volumedOutput = mixedOutput * masterGain / (float)VOICE_COUNT;
+
+        // Update spectral smearer parameters
+        spectralSmearer->setFDNMix(fdnMix);
+        spectralSmearer->setAtmosphere(atmosphere);
+        spectralSmearer->setEntropy(entropy);
+        spectralSmearer->setChaosType(chaosType);
+
+        // Process through spectral smearer (adds metallic/sci-fi character)
+        float finalOutput = spectralSmearer->process(volumedOutput);
+
         left[n] = finalOutput;
         if (right != nullptr)
             right[n] = finalOutput;
