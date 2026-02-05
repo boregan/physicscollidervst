@@ -14,15 +14,21 @@ jobs:
       with:
         submodules: recursive
 
+    - name: Install dependencies
+      run: |
+        brew install cmake
+
     - name: Clone JUCE
       run: git clone --depth 1 https://github.com/juce-framework/JUCE.git JUCE
 
-    - name: Create build directory
-      run: mkdir build
+    - name: Create clean build directory
+      run: |
+        rm -rf build CMakeCache.txt CMakeFiles
+        mkdir -p build
 
-    - name: Configure CMake
+    - name: Configure CMake with Xcode generator
       working-directory: ./build
-      run: cmake .. -DCMAKE_BUILD_TYPE=Release
+      run: cmake .. -G Xcode -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_FORCED:BOOL=ON
 
     - name: Build
       working-directory: ./build
