@@ -59,43 +59,8 @@ jobs:
         path: release-artifacts/*
         retention-days: 30
 
-  build-windows:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Clone JUCE
-      run: git clone --depth 1 https://github.com/juce-framework/JUCE.git JUCE
-
-    - name: Create build directory
-      run: mkdir build
-
-    - name: Configure CMake
-      working-directory: ./build
-      run: cmake .. -DCMAKE_BUILD_TYPE=Release
-
-    - name: Build
-      working-directory: ./build
-      run: cmake --build . --config Release --parallel 4
-
-    - name: Package VST3
-      run: |
-        mkdir release-artifacts
-        robocopy build\TheCollider_artefacts\Release\VST3 release-artifacts TheCollider.vst3 /S || exit /b 0
-        dir release-artifacts
-      shell: cmd
-
-    - name: Upload Windows artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: TheCollider-Windows
-        path: release-artifacts/*
-        retention-days: 30
-
   create-release:
-    needs: [build-macos, build-windows]
+    needs: [build-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/heads/claude/')
     steps:
