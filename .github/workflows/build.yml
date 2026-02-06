@@ -38,20 +38,31 @@ jobs:
       run: |
         mkdir -p release-artifacts
 
-        # Look for the VST3 bundle
-        find build -name "*.vst3" -type d
+        echo "=== Checking what was built ==="
+        ls -laR build/TheCollider_artefacts/ 2>/dev/null | head -50
 
-        # Try to copy from the expected location
+        echo ""
+        echo "=== Looking for VST3 bundle ==="
+        find build -name "*.vst3" -type d -exec ls -lhR {} \; 2>/dev/null | head -30
+
+        echo ""
+        echo "=== Copying VST3 if found ==="
         if [ -d "build/TheCollider_artefacts/Release/VST3/TheCollider.vst3" ]; then
+          echo "Found VST3 bundle, checking contents..."
+          du -sh "build/TheCollider_artefacts/Release/VST3/TheCollider.vst3"
+          ls -la "build/TheCollider_artefacts/Release/VST3/TheCollider.vst3/"
+
           cp -r "build/TheCollider_artefacts/Release/VST3/TheCollider.vst3" release-artifacts/
-          echo "✅ VST3 found and copied"
+          echo "✅ VST3 copied to artifacts"
+          du -sh release-artifacts/TheCollider.vst3
         else
           echo "❌ VST3 not found in expected location"
-          echo "Looking for VST3 anywhere..."
-          find . -name "*.vst3" -type d 2>/dev/null | head -5
+          find . -name "TheCollider.vst3" -type d 2>/dev/null
         fi
 
-        ls -la release-artifacts/
+        echo ""
+        echo "=== Final artifacts ==="
+        ls -lhR release-artifacts/
 
     - name: Upload macOS artifacts
       uses: actions/upload-artifact@v4
@@ -72,11 +83,12 @@ jobs:
         ls -la
         find . -name "*.vst3" -o -name "*.component" 2>/dev/null | head -20
 
-    - name: Create GitHub Release
-      uses: ncipollo/release-action@v1
-      with:
-        artifacts: "*/**/*.vst3,*/**/*.component"
-        tag: "latest-build"
-        allowUpdates: true
-        replacesArtifacts: true
-        body: "Automated build of The Collider physics synthesizer"
+    # Disabled: Release creation requires special GitHub token permissions
+    # - name: Create GitHub Release
+    #   uses: ncipollo/release-action@v1
+    #   with:
+    #     artifacts: "*/**/*.vst3,*/**/*.component"
+    #     tag: "latest-build"
+    #     allowUpdates: true
+    #     replacesArtifacts: true
+    #     body: "Automated build of The Collider physics synthesizer"
