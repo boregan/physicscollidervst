@@ -17,7 +17,7 @@ juce_add_plugin(TheCollider
     COPY_PLUGIN_AFTER_BUILD TRUE
     PLUGIN_MANUFACTURER_CODE Coll
     PLUGIN_CODE Coll
-    FORMATS VST3 AU
+    FORMATS VST3
     VST3_CATEGORIES "Synth"
     AU_MAIN_TYPE "kAudioUnitType_MusicDevice"
     BUNDLE_ID "com.PhysicsSynthesizers.TheCollider"
