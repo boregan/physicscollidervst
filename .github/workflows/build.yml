@@ -34,11 +34,22 @@ jobs:
       working-directory: ./build
       run: xcodebuild -project TheCollider.xcodeproj -scheme TheCollider -configuration Release -jobs 4 GCC_TREAT_WARNINGS_AS_ERRORS=NO CLANG_WARN_CPP_ERROR_DIRECTIVE=NO 2>&1 || true
 
-    - name: Package VST3
+    - name: Find and package artifacts
       run: |
         mkdir -p release-artifacts
-        cp -r build/TheCollider_artefacts/Release/VST3/TheCollider.vst3 release-artifacts/ || true
-        cp -r build/TheCollider_artefacts/Release/AU/TheCollider.component release-artifacts/ || true
+        echo "=== Searching for VST3 artifacts ==="
+        find build -name "*.vst3" -type d 2>/dev/null | head -10
+        find build -name "*.vst3" -type f 2>/dev/null | head -10
+        echo "=== Full build directory structure ==="
+        ls -laR build/TheCollider_artefacts/ 2>/dev/null || echo "TheCollider_artefacts not found"
+        echo "=== Alternative search ==="
+        find build -name "TheCollider*" -type d 2>/dev/null | head -20
+
+        # Try copying from common locations
+        cp -r build/TheCollider_artefacts/Release/VST3/TheCollider.vst3 release-artifacts/ 2>/dev/null || \
+        cp -r build/build/TheCollider_artefacts/Release/VST3/TheCollider.vst3 release-artifacts/ 2>/dev/null || \
+        find build -name "*.vst3" -type d -exec cp -r {} release-artifacts/ \; 2>/dev/null || true
+
         ls -la release-artifacts/
 
     - name: Upload macOS artifacts
