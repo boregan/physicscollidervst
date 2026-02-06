@@ -10,8 +10,9 @@ ParameterSection::ParameterSection(const juce::String& title, int paramCount)
     : sectionTitle(title)
 {
     for (int i = 0; i < paramCount; ++i) {
-        sliders.push_back(AnimatedSlider());
-        addAndMakeVisible(sliders.back());
+        auto slider = std::make_unique<AnimatedSlider>();
+        addAndMakeVisible(*slider);
+        sliders.push_back(std::move(slider));
     }
 }
 
@@ -52,13 +53,13 @@ void ParameterSection::resized()
     int perRow = 3;
 
     for (size_t i = 0; i < sliders.size(); ++i) {
-        int row = i / perRow;
-        int col = i % perRow;
+        int row = (int)i / perRow;
+        int col = (int)i % perRow;
 
         int x = col * (sliderSize + spacing);
         int y = row * (sliderSize + spacing) + 5;
 
-        sliders[i].setBounds(x, y, sliderSize, sliderSize);
+        sliders[i]->setBounds(x, y, sliderSize, sliderSize);
     }
 }
 
@@ -70,7 +71,6 @@ TheColliderAudioProcessorEditor::TheColliderAudioProcessorEditor(TheColliderAudi
     : AudioProcessorEditor(&p), processorRef(p)
 {
     setSize(1600, 900);
-    setFramesPerSecond(60);
     startTimer(16);  // ~60fps
 
     // Create visualizer (background)
@@ -92,26 +92,26 @@ TheColliderAudioProcessorEditor::TheColliderAudioProcessorEditor(TheColliderAudi
 
     // Setup all sliders with parameter attachments
     auto& physics = physicsSection->getSliders();
-    setupAnimatedSlider(physics[0], "gravityX");
-    setupAnimatedSlider(physics[1], "gravityY");
+    setupAnimatedSlider(*physics[0], "gravityX");
+    setupAnimatedSlider(*physics[1], "gravityY");
 
     auto& resonator = resonatorSection->getSliders();
-    setupAnimatedSlider(resonator[0], "material");
-    setupAnimatedSlider(resonator[1], "damping");
-    setupAnimatedSlider(resonator[2], "brightness");
+    setupAnimatedSlider(*resonator[0], "material");
+    setupAnimatedSlider(*resonator[1], "damping");
+    setupAnimatedSlider(*resonator[2], "brightness");
 
     auto& fm = fmSection->getSliders();
-    setupAnimatedSlider(fm[0], "fmDepth");
-    setupAnimatedSlider(fm[1], "fmRatio");
+    setupAnimatedSlider(*fm[0], "fmDepth");
+    setupAnimatedSlider(*fm[1], "fmRatio");
 
     auto& spectral = spectralSection->getSliders();
-    setupAnimatedSlider(spectral[0], "atmosphere");
-    setupAnimatedSlider(spectral[1], "entropy");
-    setupAnimatedSlider(spectral[2], "fdnMix");
+    setupAnimatedSlider(*spectral[0], "atmosphere");
+    setupAnimatedSlider(*spectral[1], "entropy");
+    setupAnimatedSlider(*spectral[2], "fdnMix");
 
     auto& output = outputSection->getSliders();
-    setupAnimatedSlider(output[0], "masterVolume");
-    setupAnimatedSlider(output[1], "stereoWidth");
+    setupAnimatedSlider(*output[0], "masterVolume");
+    setupAnimatedSlider(*output[1], "stereoWidth");
 
     // Preset selector
     presetCombo.addItemList(juce::StringArray("Default", "Laser Blip", "Bouncing Ball", "Iron Rain",
@@ -126,7 +126,10 @@ TheColliderAudioProcessorEditor::TheColliderAudioProcessorEditor(TheColliderAudi
     presetCombo.onChange = [this]() {
         int presetIndex = presetCombo.getSelectedItemIndex();
         if (presetIndex > 0) {
-            PresetManager::loadPreset(processorRef, presetIndex - 1);
+            auto presets = PresetManager::getFactoryPresets();
+            if (presetIndex - 1 < (int)presets.size()) {
+                processorRef.getAPVTS().state = presets[presetIndex - 1].tree;
+            }
         }
     };
 }
@@ -151,7 +154,7 @@ void TheColliderAudioProcessorEditor::setupAnimatedSlider(AnimatedSlider& slider
 
 void TheColliderAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    // Background is drawn by visualizer, nothing needed here
+    // Background is drawn by visualizer
 }
 
 void TheColliderAudioProcessorEditor::resized()

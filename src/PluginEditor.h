@@ -15,12 +15,12 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
 
-    std::vector<AnimatedSlider>& getSliders() { return sliders; }
+    std::vector<std::unique_ptr<AnimatedSlider>>& getSliders() { return sliders; }
     const juce::String& getTitle() const { return sectionTitle; }
 
 private:
     juce::String sectionTitle;
-    std::vector<AnimatedSlider> sliders;
+    std::vector<std::unique_ptr<AnimatedSlider>> sliders;
     bool isHovered = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ParameterSection)
