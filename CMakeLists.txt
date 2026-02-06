@@ -44,6 +44,7 @@ target_link_libraries(TheCollider PRIVATE
     juce::juce_audio_formats
     juce::juce_audio_plugin_client
     juce::juce_audio_processors
+    juce::juce_audio_utils
     juce::juce_core
     juce::juce_data_structures
     juce::juce_dsp
