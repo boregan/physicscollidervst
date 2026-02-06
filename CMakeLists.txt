@@ -21,6 +21,7 @@ juce_add_plugin(TheCollider
     VST3_CATEGORIES "Synth"
     AU_MAIN_TYPE "kAudioUnitType_MusicDevice"
     BUNDLE_ID "com.PhysicsSynthesizers.TheCollider"
+    DISABLE_VSTV2_BUILDS TRUE
 )
 
 # Add source files
