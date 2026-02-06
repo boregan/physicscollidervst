@@ -36,21 +36,29 @@ jobs:
 
     - name: Find and package artifacts
       run: |
+        echo "=== Build completed, searching for artifacts ==="
         mkdir -p release-artifacts
-        echo "=== Searching for VST3 artifacts ==="
-        find build -name "*.vst3" -type d 2>/dev/null | head -10
-        find build -name "*.vst3" -type f 2>/dev/null | head -10
-        echo "=== Full build directory structure ==="
-        ls -laR build/TheCollider_artefacts/ 2>/dev/null || echo "TheCollider_artefacts not found"
-        echo "=== Alternative search ==="
-        find build -name "TheCollider*" -type d 2>/dev/null | head -20
 
-        # Try copying from common locations
-        cp -r build/TheCollider_artefacts/Release/VST3/TheCollider.vst3 release-artifacts/ 2>/dev/null || \
-        cp -r build/build/TheCollider_artefacts/Release/VST3/TheCollider.vst3 release-artifacts/ 2>/dev/null || \
-        find build -name "*.vst3" -type d -exec cp -r {} release-artifacts/ \; 2>/dev/null || true
+        echo "=== Full directory tree ==="
+        find build -type d -name "*Collider*" 2>/dev/null
 
-        ls -la release-artifacts/
+        echo "=== All .vst3 files anywhere ==="
+        find . -name "*.vst3" -type d 2>/dev/null
+
+        echo "=== All .vst3 in build ==="
+        find build -name "*.vst3" 2>/dev/null
+
+        echo "=== Current build structure ==="
+        ls -laR build/ | head -100
+
+        echo "=== Attempting to copy artifacts ==="
+        find build -name "*.vst3" -type d | while read dir; do
+          echo "Found: $dir"
+          cp -r "$dir" release-artifacts/
+        done
+
+        echo "=== Final artifact directory ==="
+        ls -la release-artifacts/ || echo "release-artifacts empty"
 
     - name: Upload macOS artifacts
       uses: actions/upload-artifact@v4
